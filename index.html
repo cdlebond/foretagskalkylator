@@ -34,9 +34,12 @@
 <body class="bg-slate-50 min-h-screen pb-12 text-slate-900">
 
     <div class="max-w-6xl mx-auto px-4 pt-8">
-        <header class="mb-10 text-center">
+        <header class="mb-10 text-center flex flex-col items-center">
             <h1 class="text-4xl font-extrabold tracking-tight text-slate-900">Företagskalkylator <span class="text-blue-600">2026</span></h1>
             <p class="text-slate-500 mt-2 text-lg">Realtidsjustering för fakturering, lön och vinst</p>
+            <button onclick="clearAllData()" class="mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-red-500 transition-colors">
+                Nollställ All Data
+            </button>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -191,6 +194,35 @@
         const BOLAGSSKATT_RATE = 0.206;
         const SCHABLON_UTDELNING_2026 = 218325; 
 
+        // Storage Keys
+        const STORAGE_KEY_EMPLOYEES = 'payroll_tool_employees';
+        const STORAGE_KEY_COSTS = 'payroll_tool_costs';
+
+        // Initialize from LocalStorage
+        window.onload = function() {
+            const savedEmployees = localStorage.getItem(STORAGE_KEY_EMPLOYEES);
+            const savedCosts = localStorage.getItem(STORAGE_KEY_COSTS);
+            
+            if (savedEmployees) employees = JSON.parse(savedEmployees);
+            if (savedCosts) companyCosts = JSON.parse(savedCosts);
+            
+            updateCalculations();
+        };
+
+        function saveData() {
+            localStorage.setItem(STORAGE_KEY_EMPLOYEES, JSON.stringify(employees));
+            localStorage.setItem(STORAGE_KEY_COSTS, JSON.stringify(companyCosts));
+        }
+
+        function clearAllData() {
+            if (confirm("Är du säker på att du vill nollställa all data? Detta går inte att ångra.")) {
+                employees = [];
+                companyCosts = [];
+                saveData();
+                updateCalculations();
+            }
+        }
+
         function setEntryType(type) {
             currentEntryType = type;
             const cBtn = document.getElementById('typeConsultant');
@@ -228,11 +260,13 @@
 
             employees.push(data);
             document.getElementById('name').value = '';
+            saveData();
             updateCalculations();
         }
 
         function removeEmployee(id) {
             employees = employees.filter(e => e.id !== id);
+            saveData();
             updateCalculations();
         }
 
@@ -240,6 +274,7 @@
             const emp = employees.find(e => e.id == id);
             if (emp) {
                 emp[field] = parseFloat(val) || 0;
+                saveData();
                 updateCalculations();
             }
         }
@@ -251,11 +286,13 @@
             companyCosts.push({ id: Date.now(), label, amount });
             document.getElementById('costLabel').value = '';
             document.getElementById('costAmount').value = '';
+            saveData();
             updateCalculations();
         }
 
         function removeCost(id) {
             companyCosts = companyCosts.filter(c => c.id !== id);
+            saveData();
             updateCalculations();
         }
 
