@@ -176,6 +176,37 @@
                     </div>
                 </div>
 
+                <!-- NEW: COST SUMMARY SECTION -->
+                <div id="costSummarySection" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-red-500">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Summering av utgifter (Årsvis)</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-slate-600">Totala bruttolöner</span>
+                                <span class="font-semibold text-slate-800" id="sumBrutto">0 kr</span>
+                            </div>
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-slate-600">Arbetsgivaravgifter (31.42%)</span>
+                                <span class="font-semibold text-slate-800" id="sumAg">0 kr</span>
+                            </div>
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-slate-600">Pension & Löneskatt</span>
+                                <span class="font-semibold text-slate-800" id="sumPension">0 kr</span>
+                            </div>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-slate-600">Fasta utgifter (Övrigt)</span>
+                                <span class="font-semibold text-slate-800" id="sumFixed">0 kr</span>
+                            </div>
+                            <div class="flex justify-between items-center pt-3 border-t border-slate-100">
+                                <span class="text-slate-900 font-bold">TOTALA UTGIFTER</span>
+                                <span class="font-black text-red-600 text-lg" id="sumTotal">0 kr</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="space-y-4">
                     <div id="employeeGrid" class="space-y-4"></div>
                 </div>
@@ -201,8 +232,8 @@
         
         // --- NEW 2026 RULES (3:12 Reform) ---
         const INCOME_BASE_AMOUNT_2026 = 80600; 
-        const SIMPLIFIED_RULE_MULTIPLIER = 4.0; // Increased from 2.75
-        const SCHABLON_UTDELNING_2026 = INCOME_BASE_AMOUNT_2026 * SIMPLIFIED_RULE_MULTIPLIER; // 80,600 * 4 = 322,400 kr
+        const SIMPLIFIED_RULE_MULTIPLIER = 4.0; 
+        const SCHABLON_UTDELNING_2026 = INCOME_BASE_AMOUNT_2026 * SIMPLIFIED_RULE_MULTIPLIER; 
         
         const WAGE_RULE_IBB_FACTOR = 6; 
         const WAGE_RULE_MAX_THRESHOLD = 9.6 * INCOME_BASE_AMOUNT_2026; 
@@ -348,18 +379,24 @@
 
             const container = document.getElementById('employeeGrid');
             const emptyState = document.getElementById('emptyState');
+            const costSection = document.getElementById('costSummarySection');
             
-            if (employees.length === 0) {
+            if (employees.length === 0 && companyCosts.length === 0) {
                 emptyState.style.display = 'block';
+                costSection.classList.add('hidden');
                 container.innerHTML = '';
-                updateSummary(0, annualFixedCosts, 0, 0, 0);
+                updateSummary(0, 0, 0, 0, 0, 0, 0, 0);
                 return;
             }
+            
             emptyState.style.display = 'none';
+            costSection.classList.remove('hidden');
 
             let totalCompanyRevenue = 0;
             let totalPersonnelCostsToCompany = 0;
             let totalBruttoSalaries = 0;
+            let totalAgAvgifter = 0;
+            let totalPensionWithTax = 0;
             let highestSalary = 0;
 
             container.innerHTML = employees.map(emp => {
@@ -370,11 +407,15 @@
                 totalBruttoSalaries += bruttolonAnnual;
                 if (bruttolonAnnual > highestSalary) highestSalary = bruttolonAnnual;
 
+                const annualAgAvgift = bruttolonAnnual * ARBETSGIVARAVGIFT;
+                totalAgAvgifter += annualAgAvgift;
+
                 const monthlyPensionPremium = emp.monthlySalary * (emp.pensionRate / 100);
                 const annualPensionPremium = monthlyPensionPremium * 12;
-                const totalPensionCostAnnual = annualPensionPremium * (1 + SARSKILD_LONESKATT_PENSION);
+                const pensionCostAnnual = annualPensionPremium * (1 + SARSKILD_LONESKATT_PENSION);
+                totalPensionWithTax += pensionCostAnnual;
                 
-                const totalCostToCompany = (bruttolonAnnual * (1 + ARBETSGIVARAVGIFT)) + totalPensionCostAnnual;
+                const totalCostToCompany = bruttolonAnnual + annualAgAvgift + pensionCostAnnual;
                 const nettolonAnnual = calculateNetSalary(bruttolonAnnual, emp.taxRate / 100);
                 
                 totalPersonnelCostsToCompany += totalCostToCompany;
@@ -448,7 +489,7 @@
                                     <div class="mt-3 pt-3 border-t border-blue-500 text-[10px] space-y-1">
                                         <div class="flex justify-between">
                                             <span>Pension inkl löneskatt:</span>
-                                            <span>${Math.round(totalPensionCostAnnual/12).toLocaleString('sv-SE')} kr</span>
+                                            <span>${Math.round(pensionCostAnnual/12).toLocaleString('sv-SE')} kr</span>
                                         </div>
                                         <div class="flex justify-between font-bold">
                                             <span>Total bolagskostnad:</span>
@@ -463,15 +504,17 @@
                 `;
             }).join('');
 
-            const profitBeforeTax = totalCompanyRevenue - totalPersonnelCostsToCompany - annualFixedCosts;
-            updateSummary(totalCompanyRevenue, totalPersonnelCostsToCompany + annualFixedCosts, profitBeforeTax, totalBruttoSalaries, highestSalary);
+            const totalCosts = totalPersonnelCostsToCompany + annualFixedCosts;
+            const profitBeforeTax = totalCompanyRevenue - totalCosts;
+            
+            updateSummary(totalCompanyRevenue, totalCosts, profitBeforeTax, totalBruttoSalaries, highestSalary, totalAgAvgifter, totalPensionWithTax, annualFixedCosts);
         }
 
-        function updateSummary(gross, costs, profitBeforeTax, totalBrutto, highestSalary) {
+        function updateSummary(gross, costs, profitBeforeTax, totalBrutto, highestSalary, totalAg, totalPension, totalFixed) {
             const corpTax = profitBeforeTax > 0 ? profitBeforeTax * BOLAGSSKATT_RATE : 0;
             const netProfit = profitBeforeTax - corpTax;
             
-            // Calculate Salary Requirement for Wage-Based Rule (Using 2026 IBB)
+            // Calculate Salary Requirement for Wage-Based Rule
             const requirementA = (WAGE_RULE_IBB_FACTOR * INCOME_BASE_AMOUNT_2026) + (totalBrutto * 0.05);
             const salaryThreshold = Math.min(requirementA, WAGE_RULE_MAX_THRESHOLD);
             
@@ -485,28 +528,35 @@
                 potentialDividend = totalBrutto * 0.5;
                 const reqAmtElem = document.getElementById('reqAmount');
                 const reqStatElem = document.getElementById('reqStatus');
-                
                 reqAmtElem.innerText = Math.round(salaryThreshold).toLocaleString('sv-SE') + " kr";
                 
-                if (highestSalary >= salaryThreshold) {
+                if (highestSalary >= salaryThreshold && totalBrutto > 0) {
                     statusIcon = "✅";
                     reqStatElem.innerText = "Kravet är uppfyllt!";
                     reqStatElem.className = "text-[10px] text-emerald-400 italic mt-1";
                 } else {
                     statusIcon = "⚠️";
-                    reqStatElem.innerText = "Kravet ej uppfyllt. Öka lönen.";
+                    reqStatElem.innerText = totalBrutto > 0 ? "Kravet ej uppfyllt. Öka lönen." : "Lägg till lön för att beräkna...";
                     reqStatElem.className = "text-[10px] text-orange-400 italic mt-1";
                 }
             }
 
             const actualDividendLimit = Math.min(netProfit > 0 ? netProfit : 0, potentialDividend);
 
+            // Update Header Cards
             document.getElementById('totalGross').innerText = Math.round(gross).toLocaleString('sv-SE') + ' kr';
             document.getElementById('totalCorpTax').innerText = Math.round(corpTax).toLocaleString('sv-SE') + ' kr';
             document.getElementById('totalProfit').innerText = Math.round(netProfit).toLocaleString('sv-SE') + ' kr';
             document.getElementById('totalDividend').innerText = Math.round(actualDividendLimit).toLocaleString('sv-SE') + ' kr';
             document.getElementById('dividendStatusIcon').innerText = statusIcon;
             
+            // Update Cost Breakdown Section
+            document.getElementById('sumBrutto').innerText = Math.round(totalBrutto).toLocaleString('sv-SE') + ' kr';
+            document.getElementById('sumAg').innerText = Math.round(totalAg).toLocaleString('sv-SE') + ' kr';
+            document.getElementById('sumPension').innerText = Math.round(totalPension).toLocaleString('sv-SE') + ' kr';
+            document.getElementById('sumFixed').innerText = Math.round(totalFixed).toLocaleString('sv-SE') + ' kr';
+            document.getElementById('sumTotal').innerText = Math.round(costs).toLocaleString('sv-SE') + ' kr';
+
             const profitCard = document.getElementById('profitCard');
             profitCard.className = netProfit < 0 ? 'bg-red-600 p-5 rounded-2xl shadow-lg shadow-red-100' : 'bg-emerald-600 p-5 rounded-2xl shadow-lg shadow-emerald-100';
         }
