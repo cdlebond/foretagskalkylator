@@ -207,8 +207,8 @@
         const WAGE_RULE_IBB_FACTOR = 6; 
         const WAGE_RULE_MAX_THRESHOLD = 9.6 * INCOME_BASE_AMOUNT_2026; 
 
-        const STORAGE_KEY_EMPLOYEES = 'payroll_tool_employees_v4';
-        const STORAGE_KEY_COSTS = 'payroll_tool_costs_v4';
+        const STORAGE_KEY_EMPLOYEES = 'payroll_tool_employees_v5';
+        const STORAGE_KEY_COSTS = 'payroll_tool_costs_v5';
 
         window.onload = function() {
             const savedEmployees = localStorage.getItem(STORAGE_KEY_EMPLOYEES);
@@ -422,6 +422,14 @@
                                     <input type="number" value="${emp.monthlySalary}" 
                                            onchange="updateEmployeeData(${emp.id}, 'monthlySalary', this.value)"
                                            class="w-full p-2.5 bg-slate-50 border rounded-lg text-sm font-bold text-blue-600">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-[10px] font-bold text-slate-400 uppercase mb-1">
+                                        <span>Skattetabell</span>
+                                        <span class="text-blue-600">${emp.taxRate}</span>
+                                    </div>
+                                    <input type="range" min="25" max="35" step="0.5" value="${emp.taxRate}" 
+                                           oninput="updateEmployeeData(${emp.id}, 'taxRate', this.value)" class="w-full">
                                 </div>
                                 <div>
                                     <div class="flex justify-between text-[10px] font-bold text-slate-400 uppercase mb-1">
